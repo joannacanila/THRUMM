@@ -492,57 +492,175 @@ export default function Home() {
               tap a song to listen
             </div>
 
-            {/* SONG GRID */}
-            <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(152px,1fr))", gap:"10px", marginBottom:"32px" }}>
-              {data.songs?.map((song, i) => {
-                const expanded  = isExpanded(song);
-                const songLiked = isLiked(song);
-                return (
-                  <div key={i} className="scard" onClick={() => selectSong(song)}
-                    style={{ background: expanded ? "#0f0f1e" : "#0c0c18", border:`1px solid ${expanded ? `${vc}30` : "rgba(255,255,255,.05)"}`, borderRadius:"14px", padding:"12px", cursor:"none", transition:"all .2s ease", position:"relative", overflow:"hidden", animation:"cin .4s ease both", animationDelay:`${i * .05}s` }}>
-                    {/* left accent */}
-                    <div style={{ position:"absolute", top:0, left:0, bottom:0, width:"2px", background:vc, opacity: expanded ? 1 : 0, transition:"opacity .2s" }} />
+           {/* SONG GRID */}
+<div
+  style={{
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fill,minmax(152px,1fr))",
+    gap: "10px",
+    marginBottom: "32px"
+  }}
+>
+  {data.songs?.map((song, i) => {
+    const expanded = isExpanded(song);
+    const songLiked = isLiked(song);
 
-                    {/* album art */}
-                    <div style={{ width:"100%", aspectRatio:"1/1", borderRadius:"9px", overflow:"hidden", marginBottom:"10px", background:"#161628", position:"relative" }}>
-                      {song.albumArt?.medium
-                        ? <img src={song.albumArt.medium} alt={song.title} style={{ width:"100%", height:"100%", objectFit:"cover", display:"block", transform: expanded ? "scale(1.05)" : "scale(1)", filter: expanded ? "brightness(.7)" : "brightness(1)", transition:"all .3s" }} />
-                        : <div style={{ width:"100%", height:"100%", display:"flex", alignItems:"center", justifyContent:"center", fontSize:"36px" }}>{song.emoji}</div>
-                      }
-                      {/* overlay */}
-                      <div className="ovl" style={{ position:"absolute", inset:0, background:"rgba(0,0,0,.45)", display:"flex", alignItems:"center", justifyContent:"center", opacity: expanded ? 1 : 0, transition:"opacity .2s", backdropFilter:"blur(2px)" }}>
-                        <div style={{ width:"34px", height:"34px", background:"#00ff87", borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", boxShadow:"0 0 18px rgba(0,255,135,.4)" }}>
-                          {expanded
-                            ? <svg width="13" height="13" viewBox="0 0 24 24" fill="black"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
-                            : <svg width="13" height="13" viewBox="0 0 24 24" fill="black"><path d="M8 5v14l11-7z"/></svg>}
-                        </div>
-                      </div>
-                      {/* EQ badge when playing */}
-                      {expanded && (
-                        <div style={{ position:"absolute", bottom:"7px", right:"7px", background:"rgba(0,0,0,.55)", borderRadius:"5px", padding:"3px 5px", display:"flex", alignItems:"flex-end", gap:"2px", height:"17px" }}>
-                          {[4,8,12,8].map((h, j) => <span key={j} style={{ width:"2px", background:"#00ff87", borderRadius:"2px", height:`${h}px`, display:"block", animation:"eq 1.3s ease infinite", animationDelay:`${j*.1}s` }} />)}
-                        </div>
-                      )}
-                    </div>
+    const album =
+      song.albumArt?.medium ??
+      song.albumArt?.large ??
+      song.albumArt?.small;
 
-                    <div style={{ fontSize:"12px", fontWeight:700, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", marginBottom:"2px" }}>{song.title}</div>
-                    <div style={{ fontSize:"11px", color:"rgba(236,236,246,.35)", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", marginBottom:"9px" }}>{song.artist}</div>
+    return (
+      <div
+        key={i}
+        className="scard"
+        onClick={() => selectSong(song)}
+        style={{
+          background: expanded ? "#0f0f1e" : "#0c0c18",
+          border: `1px solid ${
+            expanded ? `${vc}30` : "rgba(255,255,255,.05)"
+          }`,
+          borderRadius: "14px",
+          padding: "12px",
+          cursor: "none",
+          transition: "all .2s ease",
+          position: "relative",
+          overflow: "hidden",
+          animation: "cin .4s ease both",
+          animationDelay: `${i * 0.05}s`
+        }}
+      >
+        {/* left accent */}
+        <div
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            bottom: 0,
+            width: "2px",
+            background: vc,
+            opacity: expanded ? 1 : 0,
+            transition: "opacity .2s"
+          }}
+        />
 
-                    <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-                      <span style={{ background:`${song.vibeColor}12`, color:song.vibeColor, border:`1px solid ${song.vibeColor}25`, borderRadius:"100px", padding:"2px 9px", fontSize:"9px", fontFamily:"Space Mono,monospace", fontWeight:700 }}>{song.vibe}</span>
-                      <button className="lbtn" onClick={e => { e.stopPropagation(); handleLike(song); }}
-                        style={{ background:"none", border:"none", cursor:"none", fontSize:"16px", opacity: songLiked ? 1 : .25, color: songLiked ? "#ff2d78" : "inherit", lineHeight:1, transition:"all .2s", padding:"2px" }}>
-                        {songLiked ? "♥" : "♡"}
-                      </button>
-                    </div>
-
-                    <div style={{ fontSize:"9px", fontFamily:"Space Mono,monospace", marginTop:"6px", color: expanded ? "rgba(0,255,135,.5)" : "rgba(255,255,255,.2)" }}>
-                      {expanded ? "▶ playing in Spotify embed" : "tap to listen"}
-                    </div>
-                  </div>
-                );
-              })}
+        {/* album art */}
+        <div
+          style={{
+            width: "100%",
+            aspectRatio: "1/1",
+            borderRadius: "9px",
+            overflow: "hidden",
+            marginBottom: "10px",
+            background: "#161628",
+            position: "relative"
+          }}
+        >
+          {album ? (
+            <img
+              src={album}
+              alt={song.title}
+              style={{
+                width: "100%",
+                height: "100%",
+                objectFit: "cover",
+                display: "block",
+                transform: expanded ? "scale(1.05)" : "scale(1)",
+                filter: expanded ? "brightness(.7)" : "brightness(1)",
+                transition: "all .3s"
+              }}
+            />
+          ) : (
+            <div
+              style={{
+                width: "100%",
+                height: "100%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: "36px"
+              }}
+            >
+              {song.emoji}
             </div>
+          )}
+
+          {/* overlay */}
+          <div
+            className="ovl"
+            style={{
+              position: "absolute",
+              inset: 0,
+              background: "rgba(0,0,0,.45)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              opacity: expanded ? 1 : 0,
+              transition: "opacity .2s",
+              backdropFilter: "blur(2px)"
+            }}
+          >
+            <div
+              style={{
+                width: "34px",
+                height: "34px",
+                background: "#00ff87",
+                borderRadius: "50%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                boxShadow: "0 0 18px rgba(0,255,135,.4)"
+              }}
+            >
+              {expanded ? (
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="black">
+                  <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
+                </svg>
+              ) : (
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="black">
+                  <path d="M8 5v14l11-7z" />
+                </svg>
+              )}
+            </div>
+          </div>
+
+          {/* EQ badge when playing */}
+          {expanded && (
+            <div
+              style={{
+                position: "absolute",
+                bottom: "7px",
+                right: "7px",
+                background: "rgba(0,0,0,.55)",
+                borderRadius: "5px",
+                padding: "3px 5px",
+                display: "flex",
+                alignItems: "flex-end",
+                gap: "2px",
+                height: "17px"
+              }}
+            >
+              {[4, 8, 12, 8].map((h, j) => (
+                <span
+                  key={j}
+                  style={{
+                    width: "2px",
+                    background: "#00ff87",
+                    borderRadius: "2px",
+                    height: `${h}px`,
+                    display: "block",
+                    animation: "eq 1.3s ease infinite",
+                    animationDelay: `${j * 0.1}s`
+                  }}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  })}
+</div>
 
             {/* actions */}
             <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:"10px", flexWrap:"wrap", marginBottom:"16px" }}>
