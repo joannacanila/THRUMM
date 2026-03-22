@@ -308,14 +308,16 @@ export default function Home() {
         <section style={{ textAlign:"center", padding:"88px 0 64px", animation:"up .9s ease both" }}>
           <div style={{ display:"inline-flex", alignItems:"center", gap:"8px", background:"rgba(0,255,135,.06)", border:"1px solid rgba(0,255,135,.16)", borderRadius:"100px", padding:"6px 18px", fontSize:"10px", fontFamily:"Space Mono,monospace", color:"#00ff87", marginBottom:"32px", letterSpacing:"2px" }}>
             <span style={{ width:"6px", height:"6px", background:"#00ff87", borderRadius:"50%", animation:"blink 1.2s ease infinite", boxShadow:"0 0 8px #00ff87", display:"inline-block", flexShrink:0 }} />
-            AI MUSIC · LIVE
+            THRUMM is listening, share what’s on your mind
+             
           </div>
           <h1 style={{ fontSize:"clamp(48px,8vw,96px)", fontWeight:800, lineHeight:.88, letterSpacing:"-3.5px", marginBottom:"22px" }}>
             <span style={{ display:"block" }}>feel every</span>
             <span style={{ display:"block", background:"linear-gradient(125deg,#00ff87,#22d3ee 45%,#9b5cff)", WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent", backgroundClip:"text", animation:"hue 5s ease infinite" }}>frequency</span>
           </h1>
           <p style={{ fontSize:"16px", color:"rgba(236,236,246,.45)", maxWidth:"400px", margin:"0 auto 20px", lineHeight:1.75, fontWeight:400 }}>
-            Tell THRUMM how you&apos;re feeling. The AI builds a playlist that perfectly matches your mood.
+            Pour out your state of mind. THRUMM reads between the lines to curate a soundtrack that hits perfectly.
+
           </p>
           {lastSess && <div style={{ fontFamily:"Space Mono,monospace", fontSize:"10px", color:"rgba(255,255,255,.2)", letterSpacing:".5px" }}>{lastSess}</div>}
         </section>
