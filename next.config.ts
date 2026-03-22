@@ -8,7 +8,7 @@ const nextConfig: NextConfig = {
         headers: [
           {
             key: "Content-Security-Policy",
-            value: "",
+            value: "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:;",
           },
         ],
       },
