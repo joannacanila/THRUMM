@@ -1,5 +1,28 @@
 import { NextResponse } from "next/server";
 
+/* ─────────────────────────────────────────
+   iTunes — album art (no auth, always works)
+───────────────────────────────────────── */
+async function getItunesArt(title: string, artist: string) {
+  try {
+    const q = encodeURIComponent(`${title} ${artist}`);
+    const r = await fetch(`https://itunes.apple.com/search?term=${q}&media=music&limit=1&entity=song`);
+    const d = await r.json();
+    if (d.results?.length) {
+      const art = d.results[0].artworkUrl100 as string;
+      return {
+        large:  art?.replace("100x100bb", "600x600bb") || null,
+        medium: art?.replace("100x100bb", "300x300bb") || null,
+        small:  art || null,
+      };
+    }
+  } catch (e) {}
+  return { large: null, medium: null, small: null };
+}
+
+/* ─────────────────────────────────────────
+   Spotify — IDs + URLs only (for embed)
+───────────────────────────────────────── */
 let spotifyToken: string | null = null;
 let tokenExpiry = 0;
 
@@ -31,44 +54,19 @@ async function searchSpotifyTrack(title: string, artist: string, token: string) 
     const data = await res.json();
     const tracks = data.tracks?.items;
     if (!tracks?.length) return null;
-    const match =
-      tracks.find((t: any) =>
-        t.artists[0].name.toLowerCase().includes(artist.toLowerCase().split(" ")[0])
-      ) || tracks[0];
+    const match = tracks.find((t: any) =>
+      t.artists[0].name.toLowerCase().includes(artist.toLowerCase().split(" ")[0])
+    ) || tracks[0];
     return {
-      spotifyId: match.id,
+      spotifyId:  match.id,
       spotifyUrl: match.external_urls.spotify,
-      previewUrl: match.preview_url,
-      albumArt: {
-        large:  match.album.images[0]?.url || null,
-        medium: match.album.images[1]?.url || null,
-        small:  match.album.images[2]?.url || null,
-      },
-      albumName:   match.album.name,
-      durationMs:  match.duration_ms,
-      popularity:  match.popularity,
-      explicit:    match.explicit,
-      releaseDate: match.album.release_date,
-      artistUrl:   match.artists[0].external_urls.spotify,
     };
   } catch { return null; }
 }
 
-async function searchSpotifyPlaylist(query: string, token: string) {
-  try {
-    const q = encodeURIComponent(query);
-    const res = await fetch(
-      `https://api.spotify.com/v1/search?q=${q}&type=playlist&limit=1`,
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
-    if (!res.ok) return null;
-    const data = await res.json();
-    const pl = data.playlists?.items?.[0];
-    if (!pl) return null;
-    return { name: pl.name, url: pl.external_urls.spotify, image: pl.images?.[0]?.url || null, trackCount: pl.tracks?.total };
-  } catch { return null; }
-}
-
+/* ─────────────────────────────────────────
+   Main handler
+───────────────────────────────────────── */
 export async function POST(request: Request) {
   const body = await request.json();
   const { mood, sessionHistory = [], likedArtists = [] } = body;
@@ -77,6 +75,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "mood is required" }, { status: 400 });
   }
 
+  /* ── preference context ── */
   let prefContext = "";
   if (sessionHistory.length >= 2) {
     const recentMoods = sessionHistory.slice(-3).map((s: any) => s.mood);
@@ -90,6 +89,7 @@ export async function POST(request: Request) {
     prefContext += `\nUser liked artists: ${likedArtists.slice(0, 5).join(", ")}. Include 1-2 similar artists.`;
   }
 
+  /* ── AI prompt ── */
   const prompt = `You are THRUMM, a Gen-Z AI music curator. Return ONLY valid JSON — no markdown, no text outside the object.
 
 MOOD: "${mood.trim()}"${prefContext}
@@ -114,6 +114,7 @@ MOOD: "${mood.trim()}"${prefContext}
 
 RULES: Exactly 10 songs. REAL songs only. Mix genres. No duplicate artists. Gen-Z moodLabel.`;
 
+  /* ── call OpenRouter ── */
   let aiResult: any;
   try {
     const aiRes = await fetch("https://openrouter.ai/api/v1/chat/completions", {
@@ -137,9 +138,8 @@ RULES: Exactly 10 songs. REAL songs only. Mix genres. No duplicate artists. Gen-
     const clean = rawText.replace(/```json|```/g, "").trim();
     try { aiResult = JSON.parse(clean); }
     catch {
-      const match = clean.match(/\{[\s\S]*\}/);
-      if (match) aiResult = JSON.parse(match[0]);
-      else throw new Error("Unparseable JSON");
+      const m = clean.match(/\{[\s\S]*\}/);
+      if (m) aiResult = JSON.parse(m[0]); else throw new Error("Unparseable JSON");
     }
   } catch (err: any) {
     console.error("AI step failed:", err.message);
@@ -171,46 +171,47 @@ RULES: Exactly 10 songs. REAL songs only. Mix genres. No duplicate artists. Gen-
     };
   }
 
-  let spotifyData: any[] = new Array(aiResult.songs?.length || 0).fill(null);
-  let moodPlaylist = null;
-  try {
-    const token = await getSpotifyToken();
-    const [trackResults, playlist] = await Promise.all([
-      Promise.all((aiResult.songs || []).map((s: any) => searchSpotifyTrack(s.title, s.artist, token as string))),
-      searchSpotifyPlaylist(aiResult.spotifyQuery || mood, token as string),
-    ]);
-    spotifyData = trackResults;
-    moodPlaylist = playlist;
-  } catch (err: any) {
-    console.error("Spotify enrichment failed:", err.message);
-  }
+  /* ── fetch iTunes art + Spotify IDs in parallel ── */
+  const songs = aiResult.songs || [];
 
-  const enrichedSongs = (aiResult.songs || []).map((song: any, i: number) => {
-    const sp = spotifyData[i];
+  const [itunesResults, spotifyResults] = await Promise.all([
+    // iTunes — always works, no auth needed
+    Promise.all(songs.map((s: any) => getItunesArt(s.title, s.artist))),
+    // Spotify — just for IDs and URLs (embed player)
+    (async () => {
+      try {
+        const token = await getSpotifyToken();
+        return await Promise.all(songs.map((s: any) => searchSpotifyTrack(s.title, s.artist, token as string)));
+      } catch (err: any) {
+        console.error("Spotify enrichment failed:", err.message);
+        return new Array(songs.length).fill(null);
+      }
+    })(),
+  ]);
+
+  /* ── merge ── */
+  const enrichedSongs = songs.map((song: any, i: number) => {
+    const art = itunesResults[i];
+    const sp  = spotifyResults[i];
     return {
-      title:       song.title,
-      artist:      song.artist,
-      emoji:       song.emoji  || "🎵",
-      vibe:        song.vibe   || "vibe",
-      vibeColor:   song.vibeColor || "#00ff87",
-      why:         song.why    || "",
-      genre:       song.genre  || "",
-      spotifyId:   sp?.spotifyId   || null,
-      spotifyUrl:  sp?.spotifyUrl  || `https://open.spotify.com/search/${encodeURIComponent(song.title + " " + song.artist)}`,
-      previewUrl:  sp?.previewUrl  || null,
+      title:      song.title,
+      artist:     song.artist,
+      emoji:      song.emoji     || "🎵",
+      vibe:       song.vibe      || "vibe",
+      vibeColor:  song.vibeColor || "#00ff87",
+      why:        song.why       || "",
+      genre:      song.genre     || "",
+      // Spotify for embed + links
+      spotifyId:  sp?.spotifyId  || null,
+      spotifyUrl: sp?.spotifyUrl || `https://open.spotify.com/search/${encodeURIComponent(song.title + " " + song.artist)}`,
+      // iTunes for album art — reliable on all domains
       albumArt: {
-        large:  sp?.albumArt?.large  || null,
-        medium: sp?.albumArt?.medium || null,
-        small:  sp?.albumArt?.small  || null,
+        large:  art?.large  || null,
+        medium: art?.medium || null,
+        small:  art?.small  || null,
       },
-      albumName:   sp?.albumName   || null,
-      durationMs:  sp?.durationMs  || null,
-      popularity:  sp?.popularity  || null,
-      explicit:    sp?.explicit    ?? null,
-      releaseDate: sp?.releaseDate || null,
-      artistUrl:   sp?.artistUrl   || null,
-      hasPreview:  !!sp?.previewUrl,
-      hasSpotify:  !!sp?.spotifyId,
+      hasSpotify: !!sp?.spotifyId,
+      hasPreview: false, // embed handles playback
     };
   });
 
@@ -223,10 +224,8 @@ RULES: Exactly 10 songs. REAL songs only. Mix genres. No duplicate artists. Gen-
     vibeColor:    aiResult.vibeColor    || "#00ff87",
     vibeMeters:   aiResult.vibeMeters   || [],
     songs:        enrichedSongs,
-    moodPlaylist,
     meta: {
       sessionCount:     (sessionHistory?.length || 0) + 1,
-      songsWithPreview: enrichedSongs.filter((s: any) => s.hasPreview).length,
       songsWithSpotify: enrichedSongs.filter((s: any) => s.hasSpotify).length,
       generatedAt:      new Date().toISOString(),
     },
